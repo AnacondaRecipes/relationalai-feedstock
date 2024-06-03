@@ -56,9 +56,11 @@ test:
   requires:
     - pip
     - pytest
+    - pytest-mock
     - hypothesis
   source_files:
-    - tests
+    - tests/unit
+    - tests/conftest.py
   commands:
     - pip check
     - rai --help
@@ -70,7 +72,7 @@ test:
     #
     # Skip test_new_profile because the snapshot is similar but not exactly
     # matching the computed value (same fields, different order).
-    - pytest -vv tests/unit/test_config_store.py -k "not test_new_profile"
+    - pytest -vv tests/unit -k "not test_new_profile"
 
 about:
   # home:
