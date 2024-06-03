@@ -13,7 +13,8 @@ source:
 
 build:
   number: 0
-  skip: true  # [py<310 or py>311]
+  # snowflake-snowpark-python and snowflake-connector-python not on s390x
+  skip: true  # [py<310 or py>311 or s390x]
   script: {{ PYTHON }} -m pip install . --no-deps --no-build-isolation -vv
   entry_points:
     - rai = relationalai.tools.cli:cli
