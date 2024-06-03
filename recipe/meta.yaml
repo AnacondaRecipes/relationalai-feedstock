@@ -53,13 +53,17 @@ test:
     - relationalai
   requires:
     - pip
+    - pytest
+    - hypothesis
+  source_files:
+    - tests
   commands:
     - pip check
     - rai --help
     - rai version
     # must show "No debugger found, use the new debugger with --new"
     - rai debugger
-    # - gentest --help
+    - pytest -vv tests/unit/test_config_store.py -k "not test_new_profile"
 
 about:
   # home:
