@@ -1,0 +1,82 @@
+{% set name = "relationalai" %}
+{% set version = "0.2.9" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  url: https://pypi.io/packages/source/{{ name[0] }}/{{ name }}/{{ name }}-{{ version }}.tar.gz
+  sha256: 8c678d13d9713d1e3b7f38d17f7aabbfac7c0d91f1340053a204134ca50bd5e7
+  patches:
+  - patches/0001-remove-debugger-command.patch
+
+build:
+  number: 0
+  skip: true  # [py<310]
+  script: {{ PYTHON }} -m pip install . --no-deps --no-build-isolation -vv
+  entry_points:
+    - rai = relationalai.tools.cli:cli
+    - gentest = gentest.cli.__main__:main
+
+requirements:
+  build:
+    - patch       # [not win]
+    - m2-patch    # [win]
+  host:
+    - python
+    - hatchling
+    - pip
+  run:
+    - python
+    - snowflake-connector-python
+    - rai-sdk >=0.7.4
+    - rich
+    # see patch
+    # - nicegui
+    - numpy
+    - pandas
+    - colorama
+    - inquirerpy
+    - click
+    - gravis
+    - bytecode
+    - toml
+    - tomlkit
+    - requests
+    - pyarrow
+    - websockets
+    - aiohttp
+
+test:
+  imports:
+    - relationalai
+  requires:
+    - pip
+  commands:
+    - pip check
+    - rai --help
+    - rai version
+    # must show "No debugger found, use the new debugger with --new"
+    - rai debugger
+    # - gentest --help
+
+about:
+  # home:
+  summary: The Python library for building and querying knowledge graphs with RelationalAI.
+  description: |
+    The Python library for building and querying knowledge graphs with RelationalAI.
+  # There is no LICENSE file, not license specified
+  # license: 
+  # license_file: 
+  # license_family:
+  # 
+  # The repository is at the moment private.
+  #
+  # doc_url:
+  # 
+  # dev_url: https://github.com/RelationalAI/relationalai-python
+
+extra:
+  recipe-maintainers:
+    - lorepirri
