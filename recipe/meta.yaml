@@ -9,7 +9,7 @@ source:
   url: https://pypi.io/packages/source/{{ name[0] }}/{{ name }}/{{ name }}-{{ version }}.tar.gz
   sha256: 8c678d13d9713d1e3b7f38d17f7aabbfac7c0d91f1340053a204134ca50bd5e7
   patches:
-  - patches/0001-remove-debugger-command.patch
+    - patches/0001-remove-debugger-command.patch
 
 build:
   number: 0
