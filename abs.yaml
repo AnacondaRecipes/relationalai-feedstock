@@ -1,2 +1,5 @@
 upload_channels:
   - sfe1ed40
+
+channels:
+  - https://staging.continuum.io/prefect/fs/rai-sdk-feedstock/pr2/9a77788

@@ -1,5 +1,5 @@
 {% set name = "relationalai" %}
-{% set version = "0.2.9" %}
+{% set version = "0.3.4" %}
 
 package:
   name: {{ name|lower }}
@@ -7,13 +7,13 @@ package:
 
 source:
   url: https://pypi.io/packages/source/{{ name[0] }}/{{ name }}/{{ name }}-{{ version }}.tar.gz
-  sha256: 8c678d13d9713d1e3b7f38d17f7aabbfac7c0d91f1340053a204134ca50bd5e7
+  sha256: ad4f1960f37f41e8220915c7daa03889f192cf8b07145a295d1e79e0300a4a6a
   patches:
     - patches/0001-remove-debugger-command.patch
 
 build:
   number: 0
-  skip: true  # [py<310]
+  skip: true  # [py<310 or py>311]
   script: {{ PYTHON }} -m pip install . --no-deps --no-build-isolation -vv
   entry_points:
     - rai = relationalai.tools.cli:cli
@@ -30,7 +30,8 @@ requirements:
   run:
     - python
     - snowflake-connector-python
-    - rai-sdk >=0.7.4
+    - snowflake-snowpark-python
+    - rai-sdk >=0.7.5
     - rich
     # see patch
     # - nicegui
@@ -47,6 +48,7 @@ requirements:
     - pyarrow
     - websockets
     - aiohttp
+    - packaging
 
 test:
   imports:
@@ -61,8 +63,13 @@ test:
     - pip check
     - rai --help
     - rai version
-    # must show "No debugger found, use the new debugger with --new"
+    # Must show "No debugger found, use the new debugger with --new"
     - rai debugger
+    # We run only this one test, because all the other will require credentials
+    # for the snowflake/azure backend, and need to connect to their services.
+    #
+    # Skip test_new_profile because the snapshot is similar but not exactly
+    # matching the computed value (same fields, different order).
     - pytest -vv tests/unit/test_config_store.py -k "not test_new_profile"
 
 about:

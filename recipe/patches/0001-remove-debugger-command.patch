@@ -1,16 +1,7 @@
-From f9296bb49a0ab051e14978abb476bd5ebfe2ddc1 Mon Sep 17 00:00:00 2001
+From cb7b99c8fabd8885f625d71d2260d085d87324aa Mon Sep 17 00:00:00 2001
 From: Lorenzo Pirritano <lpirritano@anaconda.com>
-Date: Mon, 3 Jun 2024 12:52:16 +0200
+Date: Mon, 3 Jun 2024 16:26:38 +0200
 Subject: [PATCH] remove debugger command
-
-This package requires 'nicegui' for a command debugger
-part of the cli, and primarily intended for internal use.
-
-We do not have the package 'nicegui' in our main nor in the
-SF channel.
-
-The package nicegui would require extensive work on our side,
-therefore we decided to patch it out.
 
 ---
  pyproject.toml                     |   1 -
@@ -20,32 +11,32 @@ therefore we decided to patch it out.
  delete mode 100644 src/relationalai/tools/debugger.py
 
 diff --git a/pyproject.toml b/pyproject.toml
-index a294f80..c9f74ba 100644
+index 5d8dbb2..e56aa1b 100644
 --- a/pyproject.toml
 +++ b/pyproject.toml
-@@ -11,7 +11,6 @@ dependencies = [
-     "snowflake-connector-python[secure-local-storage]",
-     "rai-sdk>=0.7.4",
+@@ -12,7 +12,6 @@ dependencies = [
+     "snowflake-snowpark-python",
+     "rai-sdk>=0.7.5",
      "rich",
 -    "nicegui",
      "numpy",
      "pandas",
      "colorama",
 diff --git a/src/relationalai/tools/cli.py b/src/relationalai/tools/cli.py
-index 31b9756..e442063 100644
+index e5ca10f..94686c3 100644
 --- a/src/relationalai/tools/cli.py
 +++ b/src/relationalai/tools/cli.py
-@@ -27,7 +27,6 @@ import rich
- from rich.console import Console
- from rich import box as rich_box
- from rich.table import Table
+@@ -22,7 +22,6 @@ from relationalai.loaders.csv import CSVLoader
+ from relationalai.loaders.loader import Loader, rel_schema_to_type
+ from ..clients.types import ImportSource, ImportSourceFile, ImportSourceTable
+ from ..clients.client import ResourceProvider
 -from ..tools import debugger as deb
  from ..clients import config, snowflake
- from ..clients.config import (
-     FIELD_PLACEHOLDER,
-@@ -803,7 +802,7 @@ def debugger(host, port, new):
+ from relationalai.tools.cli_helpers import (
+     EMPTY_STRING_REGEX,
+@@ -619,7 +618,7 @@ def debugger(host, port, new, profile):
          from relationalai.tools import debugger_server
-         debugger_server.start_server(host, port)
+         debugger_server.start_server(host, port, profile)
      else:
 -        deb.main(host, port)
 +        rich.print("[yellow]No debugger found, use the new debugger with --new")
@@ -54,7 +45,7 @@ index 31b9756..e442063 100644
  # Engine list
 diff --git a/src/relationalai/tools/debugger.py b/src/relationalai/tools/debugger.py
 deleted file mode 100644
-index f25336e..0000000
+index f0301a0..0000000
 --- a/src/relationalai/tools/debugger.py
 +++ /dev/null
 @@ -1,181 +0,0 @@
@@ -164,11 +155,11 @@ index f25336e..0000000
 -                    ui.label(format_time(obj['elapsed']))
 -                    if obj.get('results'):
 -                        ui.label(f"{obj['results']['count']}")
--            elif obj['event'] == "span_start" and obj['span']['type'] == "wait":
+-            elif obj['event'] == "transaction_created":
 -                with ui.row() as me:
 -                    me.style("padding: 5px 10px; border: 1px solid #544; border-radius: 5px; background:#322;")
 -                    ui.label("transaction")
--                    ui.label(obj["span"]["attrs"]["txn_id"])
+-                    ui.label(obj["txn_id"])
 -            elif obj.get('type'):
 -                total_time += obj.get('elapsed', 0)
 -                with ui.row() as me:
