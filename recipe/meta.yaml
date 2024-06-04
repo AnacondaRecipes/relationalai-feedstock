@@ -76,19 +76,16 @@ test:
     - pytest -vv tests/unit -k "not test_new_profile"
 
 about:
+  home: https://relational.ai/
+  doc_url: https://relational.ai/docs/getting_started
+  # The repository is at the moment private.
+  # dev_url: https://github.com/RelationalAI/relationalai-python
   summary: The Python library for building and querying knowledge graphs with RelationalAI.
   description: |
     The Python library for building and querying knowledge graphs with RelationalAI.
   license: Apache-2.0
   license_file: LICENSE
   license_family: Apache
-  # 
-  # 
-  # The repository is at the moment private.
-  #
-  # home:
-  # doc_url:
-  # dev_url: https://github.com/RelationalAI/relationalai-python
 
 extra:
   recipe-maintainers:
