@@ -1,0 +1,235 @@
+From cb7b99c8fabd8885f625d71d2260d085d87324aa Mon Sep 17 00:00:00 2001
+From: Lorenzo Pirritano <lpirritano@anaconda.com>
+Date: Mon, 3 Jun 2024 16:26:38 +0200
+Subject: [PATCH] remove debugger command
+
+---
+ pyproject.toml                     |   1 -
+ src/relationalai/tools/cli.py      |   3 +-
+ src/relationalai/tools/debugger.py | 181 -----------------------------
+ 3 files changed, 1 insertion(+), 184 deletions(-)
+ delete mode 100644 src/relationalai/tools/debugger.py
+
+diff --git a/pyproject.toml b/pyproject.toml
+index 5d8dbb2..e56aa1b 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -12,7 +12,6 @@ dependencies = [
+     "snowflake-snowpark-python",
+     "rai-sdk>=0.7.5",
+     "rich",
+-    "nicegui",
+     "numpy",
+     "pandas",
+     "colorama",
+diff --git a/src/relationalai/tools/cli.py b/src/relationalai/tools/cli.py
+index e5ca10f..94686c3 100644
+--- a/src/relationalai/tools/cli.py
++++ b/src/relationalai/tools/cli.py
+@@ -22,7 +22,6 @@ from relationalai.loaders.csv import CSVLoader
+ from relationalai.loaders.loader import Loader, rel_schema_to_type
+ from ..clients.types import ImportSource, ImportSourceFile, ImportSourceTable
+ from ..clients.client import ResourceProvider
+-from ..tools import debugger as deb
+ from ..clients import config, snowflake
+ from relationalai.tools.cli_helpers import (
+     EMPTY_STRING_REGEX,
+@@ -619,7 +618,7 @@ def debugger(host, port, new, profile):
+         from relationalai.tools import debugger_server
+         debugger_server.start_server(host, port, profile)
+     else:
+-        deb.main(host, port)
++        rich.print("[yellow]No debugger found, use the new debugger with --new")
+ 
+ #--------------------------------------------------
+ # Engine list
+diff --git a/src/relationalai/tools/debugger.py b/src/relationalai/tools/debugger.py
+deleted file mode 100644
+index f0301a0..0000000
+--- a/src/relationalai/tools/debugger.py
++++ /dev/null
+@@ -1,181 +0,0 @@
+-import os
+-import re
+-from nicegui import ui
+-import json
+-
+-
+-last_mod_time = None
+-current_json_objects = []
+-active_ix = None
+-active_item = None
+-
+-def set_item(ix):
+-    global active_item, active_ix
+-    if active_ix != ix:
+-        active_ix = ix
+-        active_item = current_json_objects[ix]
+-        my_stuff.refresh()
+-        details.refresh()
+-
+-def format_time(t):
+-    if t > 1:
+-        return f"{t:.1f}s"
+-    elif t > 0.001:
+-        return f"{t*1000:.1f}ms"
+-    elif t > 0.0001:
+-        return f"{t*1000:.2f}ms"
+-    else:
+-        return f"{t*1000000:.0f}us"
+-
+-def header(text):
+-    return ui.label(text).style("font-size: 1.3em; font-weight: bold;")
+-
+-def replace_long_brace_contents(code_str):
+-    def replacement(match):
+-        string = match.group(0)
+-        if len(string) > 300:
+-            # Extract the first 50 and last 30 characters from the string within brackets
+-            return '{' + string[1:51] + '...' + string[-31:-1] + '}'
+-        else:
+-            # If the string is not longer than 300 characters, return it unchanged
+-            return string
+-
+-    # This regex matches sequences of characters wrapped in { }
+-    brace_content_regex = r'\{[\s\S]*?\}'
+-
+-    # Use the sub method to replace the matched strings with the result of the replacement function
+-    return re.sub(brace_content_regex, replacement, code_str)
+-
+-
+-def code(c):
+-    c = replace_long_brace_contents(c)
+-    return ui.code(c).style("padding-right: 30px").classes("w-full")
+-
+-
+-@ui.refreshable
+-def details():
+-    if active_item:
+-        if active_item['event'] == "compilation":
+-            header(f"{active_item['source']['file']}: {active_item['source']['line']}")
+-            # with ui.row():
+-            code(active_item["source"]["block"] or active_item["emitted"])
+-            code(f"{active_item['emitted']}")
+-            header("IR")
+-            code(f"{active_item['task']}")
+-            header("Rewritten")
+-            code(f"{active_item['passes'][-1]['task']}")
+-            header("Passes")
+-            for p in active_item['passes']:
+-                with ui.column().classes("w-full"):
+-                    with ui.row():
+-                        ui.label(p['name'])
+-                        ui.label(f"({p['elapsed']*1000000:.0f} us)")
+-                    code(p['task'])
+-        elif active_item['event'] == "time":
+-            ui.label(f"{active_item['type']} | {format_time(active_item['elapsed'])} | {active_item['results']['count']}")
+-            vals = active_item['results']['values']
+-            if len(vals):
+-                keys = [k for k in vals[0].keys()]
+-                columns = [{'name': k, 'label': k, 'field': k, "align": "left"} for k in keys]
+-                ui.table(columns=columns, rows=vals)
+-            if "code" in active_item:
+-                header("Code")
+-                code(active_item["code"])
+-            # ui.label(f"{active_item['results']['values']}").style('white-space: pre;')
+-
+-@ui.refreshable
+-def my_stuff():
+-    total_time = 0
+-    with ui.column():
+-
+-        for (ix, obj) in enumerate(current_json_objects):
+-            me = None
+-
+-            if obj['event'] == "compilation":
+-                me = code(obj["source"]["block"] or obj["emitted"])
+-                total_time += obj["emit_time"]
+-                for p in obj['passes']:
+-                    total_time += p['elapsed']
+-            elif obj['event'] == "time":
+-                total_time += obj['elapsed']
+-                with ui.row() as me:
+-                    me.style("padding: 5px 10px; border: 1px solid #544; border-radius: 5px; background:#322;")
+-                    ui.label(f"{obj['type']}")
+-                    ui.label(format_time(obj['elapsed']))
+-                    if obj.get('results'):
+-                        ui.label(f"{obj['results']['count']}")
+-            elif obj['event'] == "transaction_created":
+-                with ui.row() as me:
+-                    me.style("padding: 5px 10px; border: 1px solid #544; border-radius: 5px; background:#322;")
+-                    ui.label("transaction")
+-                    ui.label(obj["txn_id"])
+-            elif obj.get('type'):
+-                total_time += obj.get('elapsed', 0)
+-                with ui.row() as me:
+-                    me.style("padding: 5px 10px; border: 1px solid #544; border-radius: 5px; background:#322;")
+-                    ui.label(f"{obj['type']}")
+-                    ui.label(format_time(obj.get('elapsed', 0)))
+-                    if obj.get('results'):
+-                        ui.label(f"{obj['results']['count']}")
+-            elif 'span' not in obj['event']:
+-                with ui.row() as me:
+-                    me.style("padding: 5px 10px; border: 1px solid #544; border-radius: 5px; background:#322;")
+-                    ui.label(f"{obj['event']}")
+-
+-            if me:
+-                me.classes("w-full")
+-                me.on("click", lambda ix=ix: set_item(ix))
+-                if ix != active_ix:
+-                    me.style('opacity: 0.5')
+-        with ui.row() as me:
+-            me.style("padding: 5px 10px; border: 1px solid #445; border-radius: 5px; background:#223; opacity: 0.5;")
+-            me.classes("w-full")
+-            if total_time > 1:
+-                ui.label(f"Total time: {total_time:.1f}s")
+-            else:
+-                ui.label(f"Total time: {total_time * 1000:.0f}ms")
+-
+-
+-def poll():
+-    global last_mod_time, active_item
+-    global current_json_objects
+-    # Check the last modification time of the file
+-    try:
+-        mod_time = os.path.getmtime('debug.jsonl')
+-        if last_mod_time is None or mod_time > last_mod_time:
+-            last_mod_time = mod_time
+-            # File has changed, read and parse the new content
+-            new_objects = []
+-            with open('debug.jsonl', 'r') as file:
+-                for line in file:
+-                    try:
+-                        # Parse each JSON object and add it to the list
+-                        obj = json.loads(line)
+-                        new_objects.append(obj)
+-                    except json.JSONDecodeError as e:
+-                        print(f"Error parsing JSON: {e}")
+-            # Update the current JSON objects
+-            current_json_objects = new_objects
+-            if active_ix is not None and len(current_json_objects) > active_ix:
+-                active_item = current_json_objects[active_ix]
+-            # Refresh the UI with the new objects
+-            my_stuff.refresh()
+-            details.refresh()
+-    except FileNotFoundError:
+-        pass
+-
+-def main(host="0.0.0.0", port=8080):
+-    ui.dark_mode().enable()
+-    with ui.row():
+-        with ui.column() as c:
+-            c.style("cursor: pointer;")
+-            my_stuff()
+-        with ui.column() as c:
+-            c.style("padding-left: 2em;")
+-            details()
+-
+-    ui.timer(1, poll)
+-    ui.run(reload=False, host=host, port=port)
+-
+-if __name__ == "__main__":
+-    main()
+-- 
+2.39.1
+
